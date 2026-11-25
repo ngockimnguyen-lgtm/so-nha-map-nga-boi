@@ -2,7 +2,7 @@
 
 /* Dán URL Web App (kết thúc bằng /exec) của Code.gs vào đây.
    Để trống thì sổ chạy chế độ thử, chỉ lưu trên máy đang mở. */
-const API_URL = '';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwhw081V-bbfN9VtFEYKon9D8cG7sGiIW_1Vz_41fxKIa1Ok4AHySA0-2JtAYRutkNJ/exec';
 
 const BOOK = 'Sổ Nhà Mập Nga Boi';
 const KEY = 'snmnb.';
