@@ -41,7 +41,7 @@ Dữ liệu chữ nằm trong Google Sheet **"Sổ Nhà Mập Nga Boi - dữ li�
 ## Sửa giao diện
 
 - Sửa file rồi upload đè lên repo.
-- Mỗi lần sửa, tăng `CACHE` trong `sw.js` (`so-nha-v1` thành `so-nha-v2`) để điện thoại tự nhận bản mới.
+- Mỗi lần sửa, tăng `CACHE` trong `sw.js` và số `?v=` sau `style.css`, `app.js` trong `index.html` để điện thoại tự nhận bản mới.
 - Xem thử trên máy: preview `so-nha` (cổng 8771). Khi `API_URL` để trống, sổ chạy chế độ thử và dữ liệu chỉ lưu trong trình duyệt đó.
 - Doodle nằm trong `DOODLES` của `app.js`, mỗi doodle là một đoạn SVG viewBox 100x100. Muốn thêm thì thêm một dòng.
 - Hiệu ứng bút sáp là filter `#crayon` trong `injectDefs()`.
