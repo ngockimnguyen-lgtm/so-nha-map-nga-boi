@@ -1,8 +1,7 @@
 'use strict';
 
-/* Dán URL Web App (kết thúc bằng /exec) của Code.gs vào đây.
-   Để trống thì sổ chạy chế độ thử, chỉ lưu trên máy đang mở. */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwhw081V-bbfN9VtFEYKon9D8cG7sGiIW_1Vz_41fxKIa1Ok4AHySA0-2JtAYRutkNJ/exec';
+/* Link Web App nằm ở config.js. Để trống thì sổ chạy chế độ thử, chỉ lưu trên máy đang mở. */
+const API_URL = self.SO_API_URL || '';
 
 const BOOK = 'Sổ Nhà Mập Nga Boi';
 const KEY = 'snmnb.';
@@ -282,6 +281,68 @@ async function mutateRec(action, payload) {
   catch { toast('Mạng chập chờn, thử lại nha'); }
 }
 
+/* ---------- thông báo đẩy ---------- */
+const push = {
+  supported: () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window,
+  standalone: () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true,
+  ios: () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+  async current() { const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); },
+};
+const b64ToU8 = b64 => { const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - b64.length % 4) % 4)); return Uint8Array.from(s, c => c.charCodeAt(0)); };
+// off | on | denied | need-install | unsupported | demo
+async function checkPush() {
+  let st2;
+  if (!API_URL) st2 = 'demo';
+  else if (push.ios() && !push.standalone()) st2 = 'need-install';
+  else if (!push.supported() || location.protocol !== 'https:') st2 = 'unsupported';
+  else if (Notification.permission === 'denied') st2 = 'denied';
+  else st2 = (Notification.permission === 'granted' && await push.current()) ? 'on' : 'off';
+  if (st2 !== S.push) { S.push = st2; render(); }
+}
+async function enablePush() {
+  if (!S.me) return gate();
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { S.push = perm === 'denied' ? 'denied' : 'off'; render(); return toast('Chưa được cho phép thông báo'); }
+  try {
+    const { key } = await api('vapid');
+    if (!key) return toast('Cần chạy setupPush trong Apps Script trước nha');
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(key) });
+    await api('subscribe', { sub: sub.toJSON(), who: S.me });
+    store.set('pushWho', S.me);
+    S.push = 'on';
+    render();
+    toast('Đã bật thông báo cho ' + MEM[S.me].name);
+  } catch { toast('Bật thông báo chưa được, thử lại nha'); }
+}
+async function disablePush() {
+  try {
+    const sub = await push.current();
+    if (sub) { await api('unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+  } catch { /* vẫn tắt trên máy */ }
+  S.push = 'off';
+  render();
+  toast('Đã tắt thông báo trên máy này');
+}
+function pushCard(compact) {
+  const s = S.push;
+  if (!s || s === 'demo' || s === 'unsupported' && compact) return '';
+  const text = {
+    'need-install': 'Muốn nhận thông báo trên iPhone: mở sổ bằng Safari, bấm nút Chia sẻ, chọn "Thêm vào MH chính", rồi mở sổ từ biểu tượng mới đó.',
+    off: 'Bật để nhận nhắc lúc 9h sáng (thư tới ngày mở, sinh nhật, chuyến đi sắp tới) và 21h tối nếu hôm đó chưa viết nhật ký.',
+    on: 'Máy này đang nhận thông báo lúc 9h sáng và 21h tối.',
+    denied: 'Máy này đã chặn thông báo của sổ. Vào Cài đặt điện thoại > Thông báo > Sổ Nhà Mình để bật lại.',
+    unsupported: 'Trình duyệt này chưa hỗ trợ thông báo. Trên iPhone cần iOS 16.4 trở lên và mở sổ từ màn hình chính.',
+  }[s];
+  if (compact && (s === 'on' || store.get('pushHide', false))) return '';
+  const btns = s === 'off' ? `<button class="btn small" data-act="push-on">Bật thông báo</button>`
+    : s === 'on' ? `<button class="btn ghost small" data-act="push-test">Gửi thử</button><button class="btn ghost small" data-act="push-off">Tắt</button>` : '';
+  return `<div class="card push-card" style="${compact ? 'margin:18px 0 0;background:var(--butter)' : 'max-width:640px;margin-top:22px'}">
+    <h2 class="section-title">${doodle('music')} Thông báo trên điện thoại</h2>
+    <p class="hand" style="margin:0 0 10px">${text}</p>
+    <div class="actions" style="justify-content:flex-start;margin-top:0">${btns}${compact ? `<button class="btn ghost small" data-act="push-hide">Để sau</button>` : ''}</div></div>`;
+}
+
 /* ---------- ảnh ---------- */
 function photoUrl(p, w = 900) { return p.id.startsWith('data:') ? p.id : `https://lh3.googleusercontent.com/d/${p.id}=w${w}`; }
 function resizeImage(file, max) {
@@ -409,6 +470,7 @@ function viewHome() {
     }).join('')}
   </div>
   ${S.me ? `<div style="margin-top:16px"><button class="btn" data-act="new-note" data-date="${t}">${icon('edit')} Viết nhật ký hôm nay</button></div>` : ''}
+  ${pushCard(true)}
 
   <section class="section">
     <h2 class="section-title">${doodle('moon')} Ngày này năm xưa</h2>
@@ -871,6 +933,7 @@ function viewSettings() {
       <div class="big-who">${MEMBERS.map(m => `<button data-act="set-me" data-m="${m.key}" aria-pressed="${S.me === m.key}" style="--soft:${m.soft}">${avatar(m.key)}${esc(m.name)}</button>`).join('')}</div>
       <p class="hand muted" style="margin:0">Chọn đúng người để viết nhật ký, thả tim và dán lời bên lề đúng tên.</p>
     </div>
+    ${pushCard(false)}
     <div class="card" style="max-width:640px;margin-top:22px">
       <h2 class="section-title">Trong sổ đang có</h2>
       <p class="hand" style="margin:0">${count('note')} trang nhật ký · ${count('trip')} chuyến đi · ${all('trip').reduce((s, t) => s + (t.photos || []).length, 0) + all('note').reduce((s, n) => s + (n.photos || []).length, 0)} ảnh · ${count('event')} sự kiện · ${count('bucket')} điều muốn làm · ${count('letter')} lá thư</p>
@@ -963,7 +1026,17 @@ const ACT = {
   'new-letter': () => letterEditor(),
   letter: el => openLetter(S.recs.get(el.dataset.id)),
   'del-letter': el => { if (confirm('Xoá lá thư này?')) { closeModal(); delRec(el.dataset.id, 'Đã xoá thư'); } },
-  'set-me': el => { S.me = el.dataset.m; store.set('me', S.me); render(); toast('Chào ' + MEM[S.me].name + '!'); },
+  'set-me': el => {
+    S.me = el.dataset.m; store.set('me', S.me); render(); toast('Chào ' + MEM[S.me].name + '!');
+    if (S.push === 'on') push.current().then(sub => sub && api('subscribe', { sub: sub.toJSON(), who: S.me })).then(() => store.set('pushWho', S.me)).catch(() => {});
+  },
+  'push-on': () => enablePush(),
+  'push-off': () => disablePush(),
+  'push-hide': () => { store.set('pushHide', true); render(); },
+  'push-test': async () => {
+    try { const j = await api('testpush', { who: S.me }); toast(j.sent ? `Đã gửi tới ${j.sent} máy, chờ vài giây nha` : 'Chưa có máy nào nhận, thử bật lại thông báo'); }
+    catch { toast('Gửi thử chưa được'); }
+  },
   resync: () => { toast('Đang đồng bộ...'); sync(true); },
   logout: () => { store.del('pass'); store.del('cache'); S.pass = ''; S.recs.clear(); render(); gate(); },
   export: () => {
@@ -1042,6 +1115,7 @@ function start() {
   if (!API_URL || S.pass) sync();
   setInterval(() => { if (!document.hidden && (S.pass || !API_URL)) sync(); }, 60000);
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  checkPush().catch(() => {});
 }
 start();
 window.__so = { S, sync, demo };

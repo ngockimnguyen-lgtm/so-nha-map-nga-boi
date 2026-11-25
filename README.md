@@ -18,7 +18,8 @@ Sổ nhật ký online cho 3 người (Mập, Nga, Boi). Giao diện sổ tay pa
 |---|---|
 | `index.html`, `style.css`, `app.js` | Giao diện, đăng trên GitHub Pages |
 | `Code.gs` | Phần lưu trữ, chạy trên Google Apps Script của chị |
-| `sw.js`, `manifest.webmanifest`, `icon*` | Thêm sổ vào màn hình chính như một app |
+| `config.js` | Link Web App, dùng chung cho `app.js` và `sw.js` |
+| `sw.js`, `manifest.webmanifest`, `icon*` | Thêm sổ vào màn hình chính như một app, nhận thông báo |
 
 Dữ liệu chữ nằm trong Google Sheet **"Sổ Nhà Mập Nga Boi - dữ liệu"**. Ảnh nằm trong thư mục Drive **"Sổ Nhà Mập Nga Boi - ảnh"**. Cả hai do `setup()` tự tạo trong Drive của chị. Mỗi bản ghi là một dòng JSON, xoá thì chỉ đánh dấu `deleted` nên vẫn lấy lại được trong Sheet.
 
@@ -32,11 +33,18 @@ Dữ liệu chữ nằm trong Google Sheet **"Sổ Nhà Mập Nga Boi - dữ li�
    - Thực thi với tư cách: **Tôi**
    - Người có quyền truy cập: **Bất kỳ ai**
 6. Bấm **Triển khai** và chép URL kết thúc bằng `/exec`.
-7. Dán URL đó vào `const API_URL = '';` ở đầu `app.js`, rồi upload lại `app.js` lên repo.
+7. Dán URL đó vào `config.js` (dòng `self.SO_API_URL`), rồi upload lại `config.js` lên repo.
 
 **Đổi mã:** sửa `MA_CHUNG` rồi chạy lại `setup`. Không cần triển khai lại. Ba người nhập mã mới một lần.
 
 **Sửa `Code.gs` sau này:** vào Triển khai > Quản lý triển khai > sửa > **Phiên bản mới**. Làm vậy thì link `/exec` giữ nguyên.
+
+## Thông báo đẩy
+
+- Gửi lúc **9h sáng** (thư hẹn giờ tới ngày mở, sinh nhật và kỷ niệm hôm nay, chuyến đi còn 7 ngày và 1 ngày) và **21h tối** (ai hôm đó chưa viết nhật ký thì nhận một lời nhắc).
+- Cài một lần: trong Apps Script chạy hàm `setupPush`, cấp quyền, rồi Triển khai > Quản lý triển khai > sửa > **Phiên bản mới**. Hàm này tạo khóa VAPID (lưu trong Script Properties), tab `push` trong Sheet, và 2 lịch chạy.
+- Trên iPhone (iOS 16.4 trở lên): thêm sổ vào màn hình chính, mở sổ từ biểu tượng đó, vào Cài đặt, bấm **Bật thông báo**, rồi bấm **Gửi thử**.
+- Cách chạy: server gửi push không kèm nội dung, service worker nhận được thì gọi action `inbox` (xác thực bằng chính endpoint của máy) để lấy tin đang chờ rồi hiện lên. Phần ký ES256 viết tay trong `EC_` vì Apps Script không có sẵn.
 
 ## Sửa giao diện
 
